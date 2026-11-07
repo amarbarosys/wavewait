@@ -1,0 +1,21 @@
+s_load_b64 s[0:1], s[0:1], null
+s_waitcnt_lgkmcnt null, 0x0
+v_lshlrev_b32_e32 v1, 4, v0
+v_lshlrev_b32_e32 v20, 2, v0
+ds_load_b128 v[2:5], v1
+ds_load_b128 v[6:9], v1
+ds_load_b128 v[10:13], v1
+ds_load_b128 v[14:17], v1
+s_waitcnt_lgkmcnt null, 0x0
+ds_load_b64 v[2:3], v1
+ds_load_b64 v[4:5], v1
+ds_load_b64 v[6:7], v1
+ds_load_b64 v[8:9], v1
+s_waitcnt_lgkmcnt null, 0x0
+ds_load_b32 v2, v20
+ds_load_b32 v3, v20
+ds_load_b32 v4, v20
+ds_load_b32 v5, v20
+s_waitcnt_lgkmcnt null, 0x0
+global_store_b32 v20, v2, s[0:1]
+s_endpgm

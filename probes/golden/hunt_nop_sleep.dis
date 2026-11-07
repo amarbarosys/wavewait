@@ -1,0 +1,6 @@
+s_nop 0
+s_nop 5
+s_sleep 1
+v_mov_b32_e32 v0, 1
+s_nop 0
+s_endpgm

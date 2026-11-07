@@ -1,0 +1,39 @@
+s_load_b64 s[0:1], s[0:1], null
+s_waitcnt_lgkmcnt null, 0x0
+v_lshrrev_b32_e32 v1, 5, v0
+v_readfirstlane_b32 s2, v1
+v_lshlrev_b32_e32 v14, 2, v0
+v_mov_b32_e32 v2, 1.0
+v_mov_b32_e32 v3, 2.0
+s_lshl_b32 s4, s2, 4
+s_sub_i32 s5, 48, s4
+s_mov_b32 s3, 0
+s_add_u32 s3, s3, 1
+s_cmp_lt_u32 s3, s4
+s_cbranch_scc1 65533
+s_barrier
+s_mov_b32 s3, 0
+s_add_u32 s3, s3, 1
+s_cmp_lt_u32 s3, s5
+s_cbranch_scc1 65533
+s_barrier
+s_barrier
+s_mov_b32 s3, 0
+s_add_u32 s3, s3, 1
+s_cmp_lt_u32 s3, s4
+s_cbranch_scc1 65533
+ds_store_b32 v14, v2
+s_barrier
+s_waitcnt_lgkmcnt null, 0x0
+s_mov_b32 s3, 0
+s_add_u32 s3, s3, 1
+s_cmp_lt_u32 s3, s4
+s_cbranch_scc1 65533
+v_add_f32_e32 v4, v2, v3
+v_add_f32_e32 v5, v4, v3
+v_add_f32_e32 v6, v5, v3
+s_barrier
+s_barrier
+v_add_f32_e32 v7, v6, v2
+global_store_b32 v14, v7, s[0:1]
+s_endpgm

@@ -1,0 +1,39 @@
+s_load_b64 s[0:1], s[0:1], null
+s_waitcnt_lgkmcnt null, 0x0
+v_lshrrev_b32_e32 v1, 5, v0
+v_and_b32_e32 v2, 1, v1
+v_lshlrev_b32_e32 v3, 2, v0
+v_mov_b32_e32 v4, 7
+v_cmpx_eq_u32_e32 0, v2
+s_cbranch_execz 56
+ds_load_b32 v8, v3
+ds_load_b32 v9, v3 offset:16
+ds_load_b32 v10, v3 offset:32
+ds_load_b32 v11, v3 offset:48
+ds_load_b32 v12, v3 offset:64
+ds_load_b32 v13, v3 offset:80
+ds_load_b32 v14, v3 offset:96
+ds_load_b32 v15, v3 offset:112
+ds_load_b32 v16, v3 offset:128
+ds_load_b32 v17, v3 offset:144
+ds_load_b32 v18, v3 offset:160
+ds_load_b32 v19, v3 offset:176
+s_waitcnt_lgkmcnt null, 0x0
+ds_store_b32 v3, v4
+ds_store_b32 v3, v4 offset:16
+ds_store_b32 v3, v4 offset:32
+ds_store_b32 v3, v4 offset:48
+ds_store_b32 v3, v4 offset:64
+ds_store_b32 v3, v4 offset:80
+ds_store_b32 v3, v4 offset:96
+ds_store_b32 v3, v4 offset:112
+ds_store_b32 v3, v4 offset:128
+ds_store_b32 v3, v4 offset:144
+ds_store_b32 v3, v4 offset:160
+ds_store_b32 v3, v4 offset:176
+s_waitcnt_lgkmcnt null, 0x0
+v_add_f32_e32 v5, v8, v9
+ds_store_b32 v3, v5
+s_waitcnt_lgkmcnt null, 0x0
+global_store_b32 v3, v5, s[0:1]
+s_endpgm

@@ -1,0 +1,25 @@
+s_load_b64 s[0:1], s[0:1], null
+s_waitcnt_lgkmcnt null, 0x0
+v_lshlrev_b32_e32 v1, 2, v0
+v_readfirstlane_b32 s2, v1
+s_add_u32 s3, s2, 1
+s_nop 0
+s_nop 0
+s_nop 0
+s_nop 0
+v_readfirstlane_b32 s4, v1
+s_nop 0
+s_add_u32 s5, s4, 1
+s_nop 0
+s_nop 0
+s_nop 0
+s_nop 0
+v_cmp_gt_u32_e32 vcc_lo, 16, v0
+s_cbranch_vccz 0
+s_nop 0
+s_nop 0
+s_nop 0
+s_nop 0
+v_mov_b32_e32 v2, s3
+global_store_b32 v1, v2, s[0:1]
+s_endpgm

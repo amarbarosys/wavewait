@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# run_hsaco KERNEL.hsaco SYMBOL GRID BLOCK [BYTES|iN ...]: launch one kernel of a gfx1100 code object through the HIP runtime
+# (tools/run_hsaco.mojo; this wrapper builds it into build/run_hsaco when the source is newer, then execs it).
+# Capture it like any HIP program: tools/att-capture.sh RUN -- tools/run_hsaco k.hsaco sym 192 256 4096 4096 i1024
+set -euo pipefail
+here=$(cd "$(dirname "$0")/.." && pwd)
+bin=$here/build/run_hsaco
+if [ ! -x "$bin" ] || [ "$here/tools/run_hsaco.mojo" -nt "$bin" ]; then
+  rtlib=$(find "$(dirname "$(readlink -f "$(command -v mojo)")")/.." -name libKGENCompilerRTShared.so -print -quit)
+  [ -n "$rtlib" ] || { echo "FAIL mojo: runtime lib not found next to $(command -v mojo)"; exit 1; }
+  mkdir -p "$here/build"
+  mojo build "$here/tools/run_hsaco.mojo" -Xlinker -rpath -Xlinker "$(dirname "$rtlib")" -o "$bin" > /dev/null || { echo "FAIL mojo: build of tools/run_hsaco.mojo"; exit 1; }
+fi
+exec "$bin" "$@"

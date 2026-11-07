@@ -1,0 +1,27 @@
+// Probe: transcendental unit. Independent v_exp/v_rcp back to back, interleaved with plain VALU, then dependent chains.
+// 1 wave. Run: run_hsaco gap_trans.hsaco gap_trans 192 32 128
+#include "probe.inc"
+PROBE_BEGIN gap_trans
+	s_load_b64 s[0:1], s[0:1], null
+	s_waitcnt_lgkmcnt null, 0x0
+	v_lshlrev_b32_e32 v1, 2, v0
+	v_cvt_f32_u32_e32 v2, v0
+	v_exp_f32_e32 v10, v2                 // 4 independent trans
+	v_exp_f32_e32 v11, v2
+	v_exp_f32_e32 v12, v2
+	v_exp_f32_e32 v13, v2
+	v_rcp_f32_e32 v14, v2                 // trans interleaved with VALU
+	v_add_f32_e32 v15, v2, v2
+	v_rcp_f32_e32 v16, v2
+	v_add_f32_e32 v17, v2, v2
+	v_exp_f32_e32 v20, v2                 // trans -> trans chain
+	v_exp_f32_e32 v21, v20
+	v_exp_f32_e32 v22, v21
+	v_rcp_f32_e32 v23, v2                 // trans -> VALU
+	v_add_f32_e32 v24, v23, v2
+	v_add_f32_e32 v25, v2, v2             // VALU -> trans
+	v_sqrt_f32_e32 v26, v25
+	v_add_f32_e32 v3, v24, v26
+	global_store_b32 v1, v3, s[0:1]
+	s_endpgm
+PROBE_END gap_trans, 27, 0

@@ -93,3 +93,20 @@ joins a bare run and a traced run per node. `wavewait rank RUN --stages OUT/stag
 - `--kernel-iteration-range` counts per kernel id, and one name can have several: `attn_fwd` iteration 1734 landed at position 1783.
 - wavewait's `valu dep` is a label on the row, not a proven dependency: on `gemm_wmma` a `v_mov_b32 v67, 0` carried it. Read it as VALU stall.
 - ComfyUI sends `executing` only to the client that queued the prompt: `comfy-trace.sh` runs a private copy of the workflow script with a client id.
+
+## Stages inside a training step (`tools/torch_stages.py`)
+
+`rank` over a whole torch process mixes import, model build and warmup into the idle share. Mark the phases of a few
+steady-state steps instead; `rank --stages` then prints wall, GPU busy, idle and top kernel per phase:
+
+```bash
+WW_STAGES=$PWD/st.tsv /opt/rocm/bin/rocprofv3 --kernel-trace --output-format csv --preload librocprofiler-sdk.so -d $PWD/run -- $PY job.py
+build/wavewait rank run --stages st.tsv
+```
+
+In the job: `st = Stages()` (no `WW_STAGES` -> no-op), `st.mark("fwd", i)`, `st.mark("bwd", i)`, `st.mark("opt", i)`, `st.end()`.
+Each mark synchronizes the GPU, so mark steps after the timed ones. Measured on a ConvNeXt-T U-Net at 1024 px
+(kaggle.com filament lane, 2026-11-10): whole-process idle 26.7 %, steady fwd/bwd idle 5 %: GPU-bound, not launch-bound.
+Same job, the kernel table found the lever: bf16 convs ran as `Im2d2Col_v2` + `Col2Im2dU` + GEMM (19.9 %) and a
+`naive_conv_ab_nonpacked` (9.1 %); fp16 ran MIOpen's Winograd `miopenSp3AsmConv_..._fp16_dot2_f3x2` and the step went
+139 -> 97 ms/img.

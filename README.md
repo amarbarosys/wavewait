@@ -115,6 +115,8 @@ Moves each wait's cost onto the `s_waitcnt` / `s_barrier` that held the wave (th
 cycle), labels every row (wave start, mem, lds/smem, barrier, depctr, valu dep, lds queue, salu dep, vmem
 issue, fetch, issue wait, issue) from the measured gfx1100 timing in the `rdna3-sqtt-emu` skill, and sums the kernel
 by cause. Total cycles are conserved (check.sh). saxpy: 27% wave start, 25% lds/smem, 21% mem, 21% mem+lds.
+A kernel that calls a non-inlined device function (`s_swappc_b64`, `s_call_b64`) is walked through the call and
+back; `cycles by function` then splits the total between the kernel and each function it entered.
 
 The decoder streams (no packet list): 11 MB trace 72 -> 23 MB peak, of which 11 MB is the trace itself.
 
@@ -127,6 +129,7 @@ The decoder streams (no packet list): 11 MB trace 72 -> 23 MB peak, of which 11 
   `tools/att-capture.sh RUN -- tools/run_hsaco build/probes/bank.hsaco bank 192 32 128`; the grid must reach CU 3 (see Limits).
 - `tools/att-capture.sh`: the rocprofv3 ATT capture above, guarded (buffer cap, hang watcher, truncation warning).
 - `tools/run_hsaco`: launches one kernel of a code object through HIP, for the capture above.
+- `tools/att-trim.sh RUNDIR OUT [N]`: a one-dispatch run dir cut to its N earliest-ending waves, for `fixtures/`.
 
 ## Check
 

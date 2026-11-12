@@ -38,3 +38,4 @@
   `probes/golden/` in `check.sh`. `tools/from-att.sh` builds the pc map with `tools/pcmap.awk`. UNVERIFIED on the GPU: `run_hsaco`
   and the probes were built and checked on the CPU only; the first run is `tools/att-capture.sh .work/att/bank -- tools/run_hsaco
   build/probes/bank.hsaco bank 192 32 128` (waves of several workgroups may share CU 3 and perturb a single-wave probe).
+- 2026-11-12: a kernel that calls a non-inlined device function walks (baro-miner quantus_search -> permute, 221 KB): the code.json label row is found wherever it sits, `s_swappc_b64` is a jump to the pc its sgpr pair holds, lost walks show their mismatches. `--causes` prints `cycles by function`. Full capture: 802869089 cycles, 35007120 issues = AMD - 1 per wave. Fixture `fixtures/app_call` (1 wave, cut by `tools/att-trim.sh`). Rules: `docs/rules.md`.

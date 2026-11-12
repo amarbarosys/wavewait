@@ -7,7 +7,8 @@ grepq() { local r=0; grep -q "$@" || r=$?; cat >/dev/null; return $r; }
 cd "$(dirname "$0")"
 # one receipt per tree and Mojo: the same check never runs twice
 sha=$( { git ls-files -s; git diff HEAD; mojo --version; } | sha256sum | cut -d' ' -f1)
-[ "$(cat .work/check.ok 2>/dev/null)" = "$sha" ] && { echo "ok wavewait: receipt $sha"; exit 0; }
+bsha() { sha256sum build/wavewait 2>/dev/null | cut -d' ' -f1; }  # the receipt names the binary too: a stash round trip leaves a stale one
+[ "$(cat .work/check.ok 2>/dev/null)" = "$sha $(bsha)" ] && { echo "ok wavewait: receipt $sha"; exit 0; }
 TMPDIR=$(mktemp -d); export TMPDIR; trap 'rm -rf "$TMPDIR"' EXIT  # every mktemp below dies with the run
 out=$(cat fixtures/golden/saxpy_cu.top3.txt)
 rows=$(grep -cE '^0x[0-9a-f]+ +[0-9.]+ +[0-9]+ +4 ' <<<"$out")
@@ -351,4 +352,4 @@ rc=0; o=$(./build/wavewait app "$cz") || rc=$?; [ "$rc" = 3 ] && grep -qE ' 0 +1
 rc=0; o=$(./build/wavewait app "$cz" --dispatch 4 --causes) || rc=$?; [ "$rc" = 3 ] && grep -q '^FAIL walk: 1 packets matched no instruction, 0 walked' <<<"$o" || { echo "FAIL call: lost walk not refused, exit $rc"; exit 1; }
 rm -rf "$cz"
 echo "ok wavewait: 28 instructions x 4 waves, aligned to the store, mojo == golden, causes conserve 12897 cycles, diff aligns 28/28 and flags 1 removed row, json round-trips 28 rows, every traced pc maps to a DWARF line (addr2line agrees), the probe fires all 4 hint rules and the saxpy hints match the golden, app mode ranks 2 kernels and agrees with the per-kernel table (saxpy and a branchy GEMV), a 48-wave GEMV walks every pc as often as the golden does, the budget gate passes its own numbers and fails -10%, the timeline page holds 4 lanes x 28 bars, app --kernel/--dispatch equal the app row, a cut trace warns about open waves, the megakernel barrier walks with 0 mismatches, --loops conserves the cycles, --top N cuts the app and --causes tables to N rows, --by-class conserves 12897 cycles and counts the issues as awk does, diff takes two app run dirs and its linear-memory alignment equals the table, att-capture turns the ATT failure into a kill within 5 s and refuses a 1 GB buffer, run_hsaco rejects bad input before touching HIP, the probe assembly equals its golden code and descriptor, a desynced walk exits 3, a kernel calling a device function walks 51180 issues through its 2 calls"
-mkdir -p .work; echo "$sha" > .work/check.ok
+mkdir -p .work; echo "$sha $(bsha)" > .work/check.ok

@@ -82,6 +82,10 @@ def print_table(ref an: Analysis, top: Int, causes: Bool, cut: Bool = False) rai
                 j -= 1
         for k in keys:
             print(pad(String(an.by_cause[k]), 8), pad(String(an.by_cause[k] * 100 // an.grand), 3) + "%", "", k)
+        if len(an.by_fn) > 1:  # the walk left the kernel: a call of a non-inlined function (s_swappc_b64, s_call_b64)
+            print("\ncycles by function:")
+            for it in an.by_fn.items():
+                print(pad(String(it.value), 8), pad(String(it.value * 100 // an.grand), 3) + "%", "", it.key)
 
 def print_exposed(ref an: Analysis, top: Int) raises:
     """The rows by exposed cycles: what each instruction cost the SIMD once the cycles another wave issued in are

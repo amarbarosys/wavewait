@@ -62,6 +62,7 @@ struct Analysis(Movable):
     var occ: Int  # wave-cycles: alive waves summed over the span
     var span: Int
     var occ_max: Int
+    var by_fn: Dict[String, Int]  # charged cycles per function of the code object (a kernel and the device functions it calls)
     var kernel: String  # the kernel symbol and the code object it came from ("" when the capture has none)
     var codeobj: String
 
@@ -69,6 +70,7 @@ struct Analysis(Movable):
         self.rows = List[Row]()
         self.idx = Dict[Int, Int]()
         self.by_cause = Dict[String, Int]()
+        self.by_fn = Dict[String, Int]()
         self.grand = 0
         self.mismatches = 0
         self.waves = 0

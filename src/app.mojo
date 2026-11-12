@@ -114,19 +114,15 @@ def code_json(path: String) raises -> Tuple[String, Int, Int]:
     var f = json_fields(text, row)
     if len(f) < 5:
         return ("", 0, -1)
-    var name = String(String(f[0]).strip())
-    if name.startswith("\""):
-        var quoted = String(name[byte=1:name.byte_length() - 1])
-        name = quoted
-    var entry = -1
-    if name.startswith("; "):  # the label row; without it the first row is an instruction, not a name
-        var label = String(name[byte=2:])
-        name = label
-        if len(f) > 5:
-            entry = atol(String(String(f[5]).strip()), 10)
-    else:
-        name = ""
-    return (name, atol(String(String(f[4]).strip()), 10), entry)
+    var cid = atol(String(String(f[4]).strip()), 10)
+    # the label row ("; <kernel>", its address = the entry) is the first row, or sits among the instruction rows when
+    # the kernel is not the lowest function of its object (quantus: a device function below it); none: no name
+    var lab = text.find("[\"; ", arr)
+    if lab < 0:
+        return ("", cid, -1)
+    var g = json_fields(text, lab)
+    var q = String(String(g[0]).strip())
+    return (String(q[byte=3:q.byte_length() - 1]), cid, atol(String(String(g[5]).strip()), 10) if len(g) > 5 else -1)
 
 
 def dispatches(rundir: String) raises -> List[Dispatch]:

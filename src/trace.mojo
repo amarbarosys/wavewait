@@ -115,6 +115,7 @@ comptime PC_GET = 1  # s_getpc_b64: the sgpr pair holds the next pc
 comptime PC_ADD = 2  # s_add_u32 of a literal to it
 comptime PC_CALL = 3  # s_call_b64: a jump, and the sgpr pair holds the return pc
 comptime PC_SET = 4  # s_setpc_b64: a jump to the sgpr pair
+comptime PC_SWAP = 5  # s_swappc_b64 D, S: a jump to the pair S (addend holds S), and the pair D holds the return pc
 
 
 struct Pcmap(Movable):
@@ -125,6 +126,7 @@ struct Pcmap(Movable):
     var text: Dict[Int, String]
     var first: Int
     var symbol: String  # the kernel the code object was built from ("" when unknown)
+    var names: Dict[Int, String]  # pc -> the function that starts there (a kernel, or a device function it calls)
     var regop: Dict[Int, Int]  # pc -> sgpr << 3 | PC_*: the instructions that compute a jump target
     var addend: Dict[Int, Int]  # pc -> the literal of its s_add_u32
 
@@ -134,6 +136,7 @@ struct Pcmap(Movable):
         self.text = Dict[Int, String]()
         self.first = -1
         self.symbol = ""
+        self.names = Dict[Int, String]()
         self.regop = Dict[Int, Int]()
         self.addend = Dict[Int, Int]()
 
@@ -146,6 +149,11 @@ struct Pcmap(Movable):
         if op:
             var at = text.find("[") + 1
             self.regop[pc] = atol(text[byte=at:text.find(":", at)]) << 3 | op
+        elif text.startswith("s_swappc_b64 s["):  # s_swappc_b64 s[30:31], s[12:13]: LLVM's call of a non-inlined function
+            var d = text.find("[") + 1
+            var s = text.find("[", d) + 1
+            self.regop[pc] = atol(text[byte=d:text.find(":", d)]) << 3 | PC_SWAP
+            self.addend[pc] = atol(text[byte=s:text.find(":", s)])
         elif text.startswith("s_add_u32 s"):  # s_add_u32 s82, s82, 0x47e4: the low half of a pc-relative address
             var f = text.split(" ")
             if len(f) == 4 and f[1] == f[2].replace(",", "") + "," and f[3].startswith("0x"):
@@ -238,7 +246,7 @@ def fits(c: String, t: String) -> Bool:
     if c == "k":
         return starts_any(t, ["s_load", "s_buffer_load", "s_dcache"])
     if c == "b":
-        return starts_any(t, ["s_cbranch", "s_branch", "s_call", "s_setpc"])
+        return starts_any(t, ["s_cbranch", "s_branch", "s_call", "s_setpc", "s_swappc"])
     if c == "r":
         return t.startswith("s_barrier")
     if c == "m":
@@ -361,6 +369,8 @@ def pcmap_of(codeobj: String) raises -> Pcmap:
                 var close = line.find(">", open)
                 if close > open:
                     pm.symbol = String(String(line[byte=open + 1:close]))
+            if line.endswith(">:") and line.find(" <") > 0:  # "0000000000037800 <name>:", one per function
+                pm.names[atol(String(line[byte=0:line.find(" <")]), 16)] = String(line[byte=line.find(" <") + 2:line.byte_length() - 2])
             continue
         var text = String(line[byte=0:cut].strip())
         var tail = String(String(line[byte=cut + 2:]).lstrip("/ ").strip())  # "000000001900: BF850002"
@@ -429,7 +439,7 @@ def analyze_paths(paths: List[String], pm: Pcmap, label: String, tl_cap: Int, co
     var mismatches = 0
     var an = Analysis()
     an.dir = label
-    an.kernel = pm.symbol
+    an.kernel = pm.names.get(start_pc, pm.symbol)  # the function the waves enter, not the lowest one of the object
     var tl_lane = Dict[Int, Int]()  # wave -> timeline lane (-1: past the cap)
     var tl_last = Dict[Int, Int]()  # wave -> index of its last timeline entry
     var dump_w = atol(getenv("WAVEWAIT_PACKETS", "-1"), 10)  # debug: print this wave's packets and the pc each lands on
@@ -591,6 +601,9 @@ def analyze_paths(paths: List[String], pm: Pcmap, label: String, tl_cap: Int, co
                     if rop & 7 == PC_CALL:  # hand-written Sp3 kernels (MIOpen's convs) call subroutines
                         var off = pm.word[a] & 0xFFFF
                         pc[w] = a + pm.size[a] + 4 * (off - 0x10000 if off & 0x8000 else off)
+                    elif rop & 7 == PC_SWAP and (w << 8 | pm.addend[a]) in regs:  # a call of a device function
+                        pc[w] = regs[w << 8 | pm.addend[a]]
+                        regs[rkey] = a + pm.size[a]  # where its s_setpc_b64 returns
                     elif p.kind == INST and opv == JUMP:  # taken branch: simm16 dwords after the next pc
                         if a not in tab.bmin:  # a wave that ended before this branch was first taken took it 0 times
                             tab.bmin[a] = 0 if ended else -1
@@ -619,7 +632,11 @@ def analyze_paths(paths: List[String], pm: Pcmap, label: String, tl_cap: Int, co
         an.occ += occ
         an.span += span
         an.occ_max = max(an.occ_max, occ_max)
+    an.mismatches = mismatches
     if not tab.order:
+        if strict and mismatches:  # packets were there: every wave lost the code at its first one (wrong entry or object)
+            print("FAIL walk: " + String(mismatches) + " packets matched no instruction, 0 walked; first: " + an.first_mismatch)
+            exit(3)
         if strict:
             print("FAIL trace: no instruction packets for the traced SIMD (capture with SQTT_WGP_PROBE=3)")
             exit(1)
@@ -639,8 +656,12 @@ def analyze_paths(paths: List[String], pm: Pcmap, label: String, tl_cap: Int, co
         an.rows.append(r)
         an.idx[a] = len(an.rows) - 1
         an.by_cause[r.cause] = an.by_cause.get(r.cause, 0) + tab.ctotal[tab.i(a)]
+        var f_at = -1  # the function holding a: the highest start at or below it
+        for s in pm.names.keys():
+            f_at = s if s <= a and s > f_at else f_at
+        if f_at >= 0:
+            an.by_fn[pm.names[f_at]] = an.by_fn.get(pm.names[f_at], 0) + tab.ctotal[tab.i(a)]
         an.grand += tab.ctotal[tab.i(a)]
-    an.mismatches = mismatches
     # the DWARF source positions, when the caller wants them and the capture ships the code
     # object it was built from (llvm-dwarfdump is a child process: it costs its own memory)
     if codeobj != "" and exists(codeobj):

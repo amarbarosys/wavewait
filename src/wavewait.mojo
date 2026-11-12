@@ -106,6 +106,22 @@ def print_exposed(ref an: Analysis, top: Int) raises:
     print("exposed " + String(x) + " of " + String(an.grand) + " charged cycles (" + String((an.grand - x) * 100 // max(an.grand, 1)) + "% overlapped: other waves issued or waited in the same cycles); SIMD idle " + String(an.idle) + " of " + String(an.span) + " cycles, " + String(xcyc(an.xtail)) + " after the waves' last traced issue")
 
 
+def print_energy(ref an: Analysis, args: List[String]) raises:
+    """Mining view of --exposed: with --watts W (board power sampled during the run) and --mhs M (the run's
+    rate), the W share spent while the traced SIMD issued nothing, and joules per MH. A share of W, not a measured
+    split: an idle SIMD still draws clock and leakage power, so the line is an upper bound on what better issue
+    density can win."""
+    var w = Float64(atof(opt(args, "--watts", "0")))
+    if w <= 0:
+        return
+    var idle = Float64(an.idle) / Float64(max(an.span, 1))
+    var line = "energy: " + String(Int(w)) + " W board; SIMD issue-idle " + String(Float64(Int(idle * 1000)) / 10.0) + "% of cycles = up to " + String(Int(w * idle)) + " W with no issue"
+    var m = Float64(atof(opt(args, "--mhs", "0")))
+    if m > 0:
+        line += "; " + String(Float64(Int(w / m * 1000)) / 1000.0) + " J/MH now, " + String(Float64(Int(w / (m / max(1 - idle, 0.01)) * 1000)) / 1000.0) + " J/MH if every idle cycle issued at the same W"
+    print(line)
+
+
 def cost_of(ref an: Analysis, pc: Int, causes: Bool) -> Int:
     """The total cycles of the row at pc, in the column the table shows."""
     ref r = an.rows[an.row_of(pc)]
@@ -298,6 +314,7 @@ def emit(ref an: Analysis, args: List[String], app: Bool) raises:
         write_html(an, html)
     elif flag(args, "--exposed"):
         print_exposed(an, top)
+        print_energy(an, args)
     elif flag(args, "--loops"):
         print_loops(an, top)
     elif flag(args, "--hints"):

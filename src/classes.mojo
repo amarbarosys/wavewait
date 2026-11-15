@@ -100,15 +100,17 @@ struct ClassTotals(Movable):
             self.issues[c] += r.waves
 
 
-def print_classes(ref an: Analysis) raises:
-    """One row per class: charged cycles, share of the total, instructions issued per wave."""
+def print_classes(ref an: Analysis, watts: Float64 = 0, tok_s: Float64 = 0) raises:
+    """One row per class: charged cycles, share of the total, instructions issued per wave. With watts and tok_s
+    (--watts W --tok-s T): each class's share of W and of the joules per token, a cycle-share model, not a measured split."""
     var t = ClassTotals(an)
     var names = class_names()
-    print(lpad("class", 17) + pad("cycles", 11) + pad("share", 7) + pad("issues", 11) + pad("per wave", 11))
+    var e = watts > 0 and tok_s > 0
+    print(lpad("class", 17) + pad("cycles", 11) + pad("share", 7) + pad("issues", 11) + pad("per wave", 11) + (pad("W", 8) + pad("mJ/tok", 9) if e else ""))
     var sum = 0
     for i in range(N_CLASSES):
         sum += t.cycles[i]
-        print(lpad(names[i], 17) + pad(String(t.cycles[i]), 11) + pad(fmt1x10(tenths(t.cycles[i] * 100, t.grand)) + "%", 7) + pad(String(t.issues[i]), 11) + pad(String(t.issues[i] // max(t.waves, 1)), 11))
+        print(lpad(names[i], 17) + pad(String(t.cycles[i]), 11) + pad(fmt1x10(tenths(t.cycles[i] * 100, t.grand)) + "%", 7) + pad(String(t.issues[i]), 11) + pad(String(t.issues[i] // max(t.waves, 1)), 11) + (pad(String(Float64(Int(watts * Float64(t.cycles[i]) / Float64(max(t.grand, 1)) * 10)) / 10.0), 8) + pad(String(Float64(Int(watts / tok_s * Float64(t.cycles[i]) / Float64(max(t.grand, 1)) * 10000)) / 10.0), 9) if e else ""))
     print("")
     print(String(sum), "cycles in", String(N_CLASSES), "classes (the table total is", String(t.grand) + ");", String(t.waves), "waves")
 

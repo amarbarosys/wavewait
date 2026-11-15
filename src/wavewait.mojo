@@ -324,7 +324,7 @@ def emit(ref an: Analysis, args: List[String], app: Bool) raises:
     elif flag(args, "--hints"):
         print_hints(an)
     elif flag(args, "--by-class"):
-        print_classes(an)
+        print_classes(an, Float64(atof(opt(args, "--watts", "0"))), Float64(atof(opt(args, "--tok-s", "0"))))
     elif flag(args, "--by-line"):
         print_by_line(an)
     elif flag(args, "--json"):

@@ -250,6 +250,9 @@ for want in "vmem load:global_load" "vmem store:global_store" "smem:s_load" "lds
   exp=$(awk -v p="$pre" '/^0x/{for(i=1;i<=NF;i++) if(index($i,p)==1){t+=$4; break}} END{print t+0}' <<<"$tbl")
   [ "$got" = "$exp" ] || { echo "FAIL by-class: $cls issues $got, table count of $pre* is $exp"; exit 1; }
 done
+be=$(./build/wavewait fixtures/saxpy_cu --by-class --watts 200 --tok-s 100)
+s=$(awk '/^[a-z]/ && $1!="class" && NF>=7 {t+=$NF} END{printf "%d", t}' <<<"$be")
+[ "$s" -ge 1990 ] && [ "$s" -le 2000 ] || { echo "FAIL by-class energy: mJ/tok column sums to $s, expected ~2000 (200 W / 100 tok/s)"; exit 1; }
 ./build/wavewait fixtures/saxpy_cu --json | python3 -c "import json,sys; d=json.load(sys.stdin); c=d['classes']; assert sum(v['cycles'] for v in c.values())==d['grand']==12897, 'sum'; assert c['waitcnt mixed']['issues']==4 and c['waitcnt vmcnt']['issues']==4 and c['waitcnt lgkmcnt']['issues']==8, 'waitcnt split'" || { echo "FAIL by-class: json classes"; exit 1; }
 # W3 diff of two app run dirs: --kernel/--dispatch picks the dispatch on each side. A run dir against itself moves nothing:
 # totals equal the app row, every cause and class shift is 0, --top cuts the rows, json parses

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Wavewait
+Exec=wavewait --gui
+Icon=wavewait
+StartupWMClass=wavewait
+Categories=Development;

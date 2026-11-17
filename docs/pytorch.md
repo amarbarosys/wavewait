@@ -84,6 +84,15 @@ are exact on all 44 (AMD's instructions less one per wave). Read on the matmul (
 
 ## ComfyUI
 
+**Any graph, one command.** On LTX-2.5 (Q5_K_M GGUF, warm shot 63 s, 940,887 dispatches) this showed that the GGUF dequant chain, not attention,
+limits sampling: shift/mask plus multiply/copy kernels are 54 % of stage-1 and 28 % of stage-2 kernel time, about 1.0 s and 39,710 dispatches per
+sampler step in both stages; attention is 3 to 10 % and already the AOTriton flash kernel. `tools/comfy-prof.sh OUT G1.api.json G2.api.json ...` runs
+the graphs one after the other on one resident server under `rocprofv3 --kernel-trace` (a gpu-wait job; graphs must differ, ComfyUI skips a cached
+prompt; the last graph is the warm shot) and writes per shot `stages-K.tsv`, `rank-K.txt` (`rank --stages`) and `classes-K.txt` from `tools/kclass.sh`
+(per node: busy, dispatches, kernel time by class gemm / attn / conv / norm / bitops / elem; `--steps` cuts one window per sampler step). Dequant has no
+kernel name of its own in torch, so `bitops` is its proxy. Env, flags and caps: the script header; `MEM` defaults to 36 GB (ComfyUI peaks at 35 GB and a
+traced run with the default cache died in its second prompt at the 36 GB cap; `COMFY_FLAGS=... --cache-none` fixed it). CPU gate: `tools/test_kclass.sh`.
+
 `tools/comfy-trace.sh OUT [KERNEL_REGEX ITERATIONS | --bare]` runs one mesh under rocprofv3 as a gpu-wait job; `tools/comfy_join.py BARE TRACED`
 joins a bare run and a traced run per node. `wavewait rank RUN --stages OUT/stages.tsv` adds busy, idle and top kernel per node.
 

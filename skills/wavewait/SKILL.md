@@ -53,6 +53,8 @@ A code object with no host program: `tools/att-capture.sh RUN -- tools/run_hsaco
 
 ## Gotchas
 
+- `--gui` draws the causes and costliest rows in a window (needs a GPU and a display) through `build/wavewait-gui`, built
+  only when `mojo-imkit` is checked out next to the repo. For an agent the text and `--json` output are the interface.
 - **One workgroup traces nothing.** ATT sees only workgroups that land on CU 3. Launch 192 or more.
 - **Read `mism` and the `WARN` lines before any verdict.** A walk that lost alignment prints a confident table.
   wavewait exits 3 with `FAIL walk`; `--allow-mism` shows it anyway. `open` > 0 means the trace stopped early.

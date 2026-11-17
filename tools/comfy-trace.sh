@@ -16,7 +16,7 @@ flow=${FLOW:-$HOME/Projects/imports/comfy-workflows/templates/3d_pixal3d_trellis
 wf=${WORKFLOW:-$HOME/Projects/homeless-sim/tools/comfy_workflow.py}
 image=${IMAGE:-assetgen_bench_slat.png}; steps=${ASSET_STEPS:-0.75}; floor=${MIN_FREE_GB:-15}
 if [ -z "${COMFY_TRACE_INNER:-}" ]; then
-  exec gpu-wait run --vram 20 --timeout 1200 --label comfy-trace -- env -u HSA_OVERRIDE_GFX_VERSION COMFY_TRACE_INNER=1 KEEP_WAVES="${KEEP_WAVES:-}" IMAGE="$image" ASSET_STEPS="$steps" MIN_FREE_GB="$floor" COMFY="$comfy" FLOW="$flow" WORKFLOW="$wf" "$0" "$@"
+  exec gpu-wait run --vram 20 --timeout 1200 --label comfy-trace -- env -u HSA_OVERRIDE_GFX_VERSION COMFY_TRACE_INNER=1 KEEP_WAVES="${KEEP_WAVES:-}" IMAGE="$image" ASSET_STEPS="$steps" COMFYUI_ENABLE_MIOPEN="${COMFYUI_ENABLE_MIOPEN:-}" MIN_FREE_GB="$floor" COMFY="$comfy" FLOW="$flow" WORKFLOW="$wf" "$0" "$@"
 fi
 set -m  # a job-controlled server keeps Python's SIGINT handler: a plain background job starts with SIGINT ignored
 [ ! -e "$out" ] || { echo "FAIL trace: $out exists"; exit 1; }

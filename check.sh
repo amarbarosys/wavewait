@@ -19,6 +19,10 @@ mkdir -p build
 rtlib=$(find "$(dirname "$(readlink -f "$(command -v mojo)")")/.." -name libKGENCompilerRTShared.so -print -quit)
 [ -n "$rtlib" ] || { echo "FAIL mojo: runtime lib not found next to $(command -v mojo)"; exit 1; }
 mojo build -I src src/wavewait.mojo -Xlinker -rpath -Xlinker "$(dirname "$rtlib")" -o build/wavewait >/dev/null || { echo "FAIL mojo: build"; exit 1; }
+# --gui runs build/wavewait-gui (imkit): built only when mojo-imkit is checked out next to the repo, the CLI never needs it
+if [ -d ../mojo-imkit/src/imkit ]; then
+  mojo build -I src -I ../mojo-imkit/src src/gui.mojo -Xlinker -rpath -Xlinker "$(dirname "$rtlib")" -o build/wavewait-gui >/dev/null || { echo "FAIL mojo: gui build"; exit 1; }
+else echo "skip wavewait-gui: no ../mojo-imkit"; fi
 diff <(./build/wavewait fixtures/saxpy_cu --top 3) <(echo "$out") >/dev/null || { echo "FAIL mojo: table differs from fixtures/golden/saxpy_cu.top3.txt"; exit 1; }
 # --causes only moves cycles onto the waits: the per-cause sum equals the raw total (12897 on saxpy)
 raw=$(./build/wavewait fixtures/saxpy_cu --top 0 | awk '/^ *0x/{t+=$2*$4} END{printf "%.0f", t}')

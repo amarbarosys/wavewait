@@ -18,6 +18,7 @@ from classes import json_classes, print_classes
 from html import write_html
 from loops import print_loops
 from lines import LineMap, load_dwarf
+from std.ffi import external_call
 
 
 def print_table(ref an: Analysis, top: Int, causes: Bool, cut: Bool = False) raises:
@@ -270,6 +271,9 @@ def main() raises:
         print("usage: wavewait [table|diff|app|budget] DIR [options]")
         exit(1)
     var cmd = args[1]
+    if flag(args, "--gui"):
+        gui_handoff(args)
+        return
     if cmd == "diff":
         diff_main(args)
         return
@@ -279,8 +283,7 @@ def main() raises:
         return
     if cmd == "app":
         if opt(args, "--dispatch", "") != "" or opt(args, "--kernel", "") != "":
-            var html_a = opt(args, "--html", "")
-            var an_a = app_one(args, TL_CAP if html_a != "" else 0, flag(args, "--by-line") or flag(args, "--json"))
+            var an_a = capture(args)
             emit(an_a, args, True)
             return
         app_main(args)
@@ -294,16 +297,43 @@ def main() raises:
     if cmd == "sim":
         print("sim: blocked, the per-SIMD scheduler does not exist yet (docs/W7-blocked.md)")
         exit(2)
-    var dir = String(args[1])
-    if cmd == "table":
-        if len(args) < 3:
-            print("usage: wavewait table DIR [options]")
-            exit(1)
-        dir = String(args[2])
+    if cmd == "table" and len(args) < 3:
+        print("usage: wavewait table DIR [options]")
+        exit(1)
+    var an = capture(args)
+    emit(an, args, False)
+
+
+def capture(args: List[String]) raises -> Analysis:
+    """The one capture a command line names: an app dispatch (app --dispatch/--kernel) or a capture dir."""
+    var tl = TL_CAP if opt(args, "--html", "") != "" else 0
     # the source positions only cost a dwarfdump child when the output shows them
     var want_lines = flag(args, "--by-line") or flag(args, "--json")
-    var an = analyze(dir, TL_CAP if opt(args, "--html", "") != "" else 0, dir + "/codeobj.out" if want_lines else "")
-    emit(an, args, False)
+    if args[1] == "app":
+        return app_one(args, tl, want_lines)
+    var dir = String(args[2]) if args[1] == "table" else String(args[1])
+    return analyze(dir, tl, dir + "/codeobj.out" if want_lines else "")
+
+
+def gui_handoff(args: List[String]) raises:
+    """--gui: the same command line in wavewait-gui (src/gui.mojo, imkit), built only when mojo-imkit is next to the repo."""
+    var bin = args[0] + "-gui"
+    # one buffer holds every argument, the pointers are taken once it stops growing (std Process.run's argv dangles)
+    var data = List[UInt8]()
+    var offs = List[Int]()
+    for i in range(len(args)):
+        offs.append(len(data))
+        data.extend((bin if i == 0 else args[i]).as_bytes())
+        data.append(0)
+    var ptrs = List[Int]()
+    for o in offs:
+        ptrs.append(Int(data.unsafe_ptr()) + o)
+    ptrs.append(0)
+    _ = external_call["execvp", Int32](Int(data.unsafe_ptr()), Int(ptrs.unsafe_ptr()))
+    _ = data^  # the Int addresses do not keep the buffers alive: hold them past the call
+    _ = ptrs^
+    print("--gui: cannot start " + bin + " (check.sh builds it when ../mojo-imkit exists)")
+    exit(2)
 
 
 def emit(ref an: Analysis, args: List[String], app: Bool) raises:

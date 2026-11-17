@@ -8,6 +8,8 @@ Cycle-level stall profile of any gfx1100 kernel (hipcc, Mojo, hand asm) from a r
 on the 7900 XTX, captured through rocprofv3 ATT (any HIP program or code object).
 Shows, per instruction, how many cycles each wave waited before it issued.
 
+![wavewait --gui on the saxpy capture: cycles by cause and the costliest rows](docs/img/gui.png)
+
 `tools/doctor.sh` says what this machine still needs to capture, with the fix.
 
 Docs: [`docs/api.md`](docs/api.md) (every subcommand, flag and exit code), [`docs/design.md`](docs/design.md) (layout, data flow, memory, what was rejected), [`docs/pytorch.md`](docs/pytorch.md) (whole PyTorch process).
@@ -86,6 +88,7 @@ system LLVM 23: ROCm 7.2's objdump prints some gfx11 VOP3 as `.long` and shifts 
 | `WAVEWAIT_PACKETS=W wavewait ...` | debug: wave W's first 400 packets, the pc each lands on, MISS where the walk lost alignment | - |
 | `wavewait budget FILE DIR` | `cycles N` / `cause NAME PCT` rules, exit 1 naming each broken rule | own numbers pass, -1 cycle and -10% fail |
 | `wavewait DIR --html OUT` | self-contained per-wave timeline page | 4 lanes x 112 bars |
+| `wavewait DIR [--causes] [--top N] --gui` | the causes and costliest rows in a window (imkit, picture above): starts `build/wavewait-gui` with the same arguments, which `check.sh` builds only when `mojo-imkit` is checked out next to this repo; the CLI never needs it | built when imkit is present |
 | `wavewait sim` | blocked: needs the per-SIMD scheduler (`docs/W7-blocked.md`) | exits 2 |
 
 Peak RSS on the 11 MB trace: 24.0 MB table, 24.1 MB `--html`; app mode on `fixtures/app` 45.2 MB.
